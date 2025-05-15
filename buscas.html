@@ -1,76 +1,108 @@
-
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Busca na Tabela Google Sheets</title>
-    <style>
-        input, button {
-            font-size: 16px;
-            padding: 6px;
-        }
-        table {
-            margin-top: 15px;
-            border-collapse: collapse;
-            width: 100%;
-        }
-        td, th {
-            border: 1px solid #999;
-            padding: 8px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>Dados da Planilha Google</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    input[type="text"] {
+      padding: 6px;
+      font-size: 16px;
+    }
+    button {
+      padding: 6px 12px;
+      font-size: 16px;
+      margin-left: 8px;
+      cursor: pointer;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 20px;
+    }
+    th, td {
+      border: 1px solid #aaa;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background-color: #f0f0f0;
+    }
+  </style>
 </head>
 <body>
-    <h1>Busca na Tabela Google Sheets</h1>
-    <input type="text" id="busca" placeholder="Digite para buscar..." />
-    <button onclick="buscarTabela()">Buscar</button>
-    <div id="resultados"></div>
+  <h1>Busca de Dados da Planilha</h1>
 
-    <script>
-        async function buscarTabela() {
-            const query = document.getElementById('busca').value.trim().toLowerCase();
-            if (query.length < 3) {
-                alert('Digite pelo menos 3 caracteres para buscar.');
-                return;
-            }
+  <input type="text" id="busca" placeholder="Digite para buscar">
+  <button onclick="filtrarTabela()">Buscar</button>
 
-            try {
-                const response = await fetch('https://docs.google.com/spreadsheets/d/1zrduyrihbHkkRDQ6AhyRO6-gVXIpGsYaAt1g3-XOhQo/gviz/tq?tqx=out:json');
-                const text = await response.text();
-                const json = JSON.parse(text.substring(47).slice(0, -2));
-                const linhas = json.table.rows;
+  <table id="dados">
+    <thead></thead>
+    <tbody></tbody>
+  </table>
 
-                const resultados = linhas.filter(linha => {
-                    const colunasABC = linha.c.slice(0, 3); // Apenas A, B, C
-                    return colunasABC.some(celula =>
-                        celula?.v?.toString().toLowerCase().includes(query)
-                    );
-                });
+  <script>
+    const url = "https://spreadsheets.google.com/feeds/list/2PACX-1vSVwQh4neVdJb4rEA-08EBQMCz_E41icCYOEU8rM43PMKOKD7j3lQ-qqvXT5PNablkx1BT2fizsY5CU/1/public/values?alt=json";
+    let dadosCompleto = [];
+    let headers = [];
 
-                const resultadoDiv = document.getElementById('resultados');
-                resultadoDiv.innerHTML = '';
+    fetch(url)
+      .then(response => response.json())
+      .then(data => {
+        const entries = data.feed.entry;
+        dadosCompleto = entries;
+        const tabela = document.getElementById("dados");
+        const thead = tabela.querySelector("thead");
+        const tbody = tabela.querySelector("tbody");
 
-                if (resultados.length > 0) {
-                    const tabela = document.createElement('table');
-                    resultados.forEach(linha => {
-                        const tr = document.createElement('tr');
-                        linha.c.forEach(celula => {
-                            const td = document.createElement('td');
-                            td.textContent = celula?.v || '';
-                            tr.appendChild(td);
-                        });
-                        tabela.appendChild(tr);
-                    });
-                    resultadoDiv.appendChild(tabela);
-                } else {
-                    resultadoDiv.textContent = 'Nenhum resultado encontrado.';
-                }
-            } catch (error) {
-                console.error('Erro ao buscar dados:', error);
-                document.getElementById('resultados').textContent = 'Erro ao buscar dados.';
-            }
+        if (entries.length > 0) {
+          headers = Object.keys(entries[0])
+            .filter(key => key.startsWith("gsx$"))
+            .map(key => key.replace("gsx$", ""));
+
+          const headerRow = document.createElement("tr");
+          headers.forEach(h => {
+            const th = document.createElement("th");
+            th.textContent = h.toUpperCase();
+            headerRow.appendChild(th);
+          });
+          thead.appendChild(headerRow);
+
+          preencherTabela(entries);
         }
-    </script>
+      })
+      .catch(error => {
+        console.error("Erro ao carregar os dados:", error);
+      });
+
+    function preencherTabela(dados) {
+      const tbody = document.querySelector("#dados tbody");
+      tbody.innerHTML = "";
+
+      dados.forEach(entry => {
+        const row = document.createElement("tr");
+        headers.forEach(h => {
+          const td = document.createElement("td");
+          td.textContent = entry[`gsx$${h}`]?.$t || "";
+          row.appendChild(td);
+        });
+        tbody.appendChild(row);
+      });
+    }
+
+    function filtrarTabela() {
+      const termo = document.getElementById("busca").value.toLowerCase();
+      const filtrados = dadosCompleto.filter(entry => {
+        return headers.some(h => {
+          const valor = entry[`gsx$${h}`]?.$t.toLowerCase() || "";
+          return valor.includes(termo);
+        });
+      });
+      preencherTabela(filtrados);
+    }
+  </script>
 </body>
 </html>
