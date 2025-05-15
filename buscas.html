@@ -1,0 +1,76 @@
+
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Busca na Tabela Google Sheets</title>
+    <style>
+        input, button {
+            font-size: 16px;
+            padding: 6px;
+        }
+        table {
+            margin-top: 15px;
+            border-collapse: collapse;
+            width: 100%;
+        }
+        td, th {
+            border: 1px solid #999;
+            padding: 8px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Busca na Tabela Google Sheets</h1>
+    <input type="text" id="busca" placeholder="Digite para buscar..." />
+    <button onclick="buscarTabela()">Buscar</button>
+    <div id="resultados"></div>
+
+    <script>
+        async function buscarTabela() {
+            const query = document.getElementById('busca').value.trim().toLowerCase();
+            if (query.length < 3) {
+                alert('Digite pelo menos 3 caracteres para buscar.');
+                return;
+            }
+
+            try {
+                const response = await fetch('https://docs.google.com/spreadsheets/d/1zrduyrihbHkkRDQ6AhyRO6-gVXIpGsYaAt1g3-XOhQo/gviz/tq?tqx=out:json');
+                const text = await response.text();
+                const json = JSON.parse(text.substring(47).slice(0, -2));
+                const linhas = json.table.rows;
+
+                const resultados = linhas.filter(linha => {
+                    const colunasABC = linha.c.slice(0, 3); // Apenas A, B, C
+                    return colunasABC.some(celula =>
+                        celula?.v?.toString().toLowerCase().includes(query)
+                    );
+                });
+
+                const resultadoDiv = document.getElementById('resultados');
+                resultadoDiv.innerHTML = '';
+
+                if (resultados.length > 0) {
+                    const tabela = document.createElement('table');
+                    resultados.forEach(linha => {
+                        const tr = document.createElement('tr');
+                        linha.c.forEach(celula => {
+                            const td = document.createElement('td');
+                            td.textContent = celula?.v || '';
+                            tr.appendChild(td);
+                        });
+                        tabela.appendChild(tr);
+                    });
+                    resultadoDiv.appendChild(tabela);
+                } else {
+                    resultadoDiv.textContent = 'Nenhum resultado encontrado.';
+                }
+            } catch (error) {
+                console.error('Erro ao buscar dados:', error);
+                document.getElementById('resultados').textContent = 'Erro ao buscar dados.';
+            }
+        }
+    </script>
+</body>
+</html>
