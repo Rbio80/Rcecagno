@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Dados da Planilha Google</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    input[type="text"] {
+      padding: 6px;
+      font-size: 16px;
+    }
+    button {
+      padding: 6px 12px;
+      font-size: 16px;
+      margin-left: 8px;
+      cursor: pointer;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 20px;
+    }
+    th, td {
+      border: 1px solid #aaa;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background-color: #f0f0f0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Busca de Dados da Planilha</h1>
+
+  <input type="text" id="busca" placeholder="Digite para buscar">
+  <button onclick="filtrarTabela()">Buscar</button>
+
+  <table id="dados">
+    <thead></thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    const url = "https://spreadsheets.google.com/feeds/list/16AmOrPeERhBgXfkH_whV7u-fOFiFZDilY-Emyum43vQ/1/public/values?alt=json";
+    let dadosCompleto = [];
+    let headers = [];
+
+    fetch(url)
+      .then(response => response.json())
+      .then(data => {
+        const entries = data.feed.entry;
+        dadosCompleto = entries;
+        const tabela = document.getElementById("dados");
+        const thead = tabela.querySelector("thead");
+        const tbody = tabela.querySelector("tbody");
+
+        if (entries.length > 0) {
+          headers = Object.keys(entries[0])
+            .filter(key => key.startsWith("gsx$"))
+            .map(key => key.replace("gsx$", ""));
+
+          const headerRow = document.createElement("tr");
+          headers.forEach(h => {
+            const th = document.createElement("th");
+            th.textContent = h.toUpperCase();
+            headerRow.appendChild(th);
+          });
+          thead.appendChild(headerRow);
+
+          preencherTabela(entries);
+        }
+      })
+      .catch(error => {
+        console.error("Erro ao carregar os dados:", error);
+      });
+
+    function preencherTabela(dados) {
+      const tbody = document.querySelector("#dados tbody");
+      tbody.innerHTML = "";
+
+      dados.forEach(entry => {
+        const row = document.createElement("tr");
+        headers.forEach(h => {
+          const td = document.createElement("td");
+          td.textContent = entry[`gsx$${h}`]?.$t || "";
+          row.appendChild(td);
+        });
+        tbody.appendChild(row);
+      });
+    }
+
+    function filtrarTabela() {
+      const termo = document.getElementById("busca").value.toLowerCase();
+      const filtrados = dadosCompleto.filter(entry => {
+        return headers.some(h => {
+          const valor = entry[`gsx$${h}`]?.$t.toLowerCase() || "";
+          return valor.includes(termo);
+        });
+      });
+      preencherTabela(filtrados);
+    }
+  </script>
+</body>
+</html>
